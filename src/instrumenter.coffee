@@ -26,6 +26,8 @@ crypto = require 'crypto'
 escodegen = require 'escodegen'
 estraverse = require 'estraverse'
 esprima = require 'esprima'
+path = require 'path'
+fs = require 'fs'
 
 generateTrackerVar = (filename, omitSuffix) ->
     if omitSuffix
@@ -67,6 +69,18 @@ class Instrumenter extends istanbul.Instrumenter
         @walker.startWalk program
         codegenOptions = @opts.codeGenerationOptions or format: compact: not this.opts.noCompact
         "#{@getPreamble code}\n#{escodegen.generate program, codegenOptions}\n"
+
+    # Used to ensure that a module is included in the code coverage report
+    # (even if it is not loaded during the test)
+    includeInCoverageReport: (filename) ->
+        filename = path.resolve(filename)
+        code = fs.readFileSync(filename, 'utf8')
+        @instrumentSync(code, filename)
+
+        # Setup istanbul's references for this module
+        eval("#{@getPreamble null}")
+
+        return
 
     attachLocation: (program, sourceMap)->
         estraverse.traverse program,
